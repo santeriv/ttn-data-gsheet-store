@@ -1,0 +1,25 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: tiviasatakunta
+# "app" enables Serverless Framework Dashboard features and sharing them with other Services.
+app: ttn-data-gsheet
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: ttn-data-gsheet-store
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+
+  environment:
+    REQUEST_TIME_PROPERTY_NAME: '${env:REQUEST_TIME_PROPERTY_NAME}'
+    GOOGLE_CLIENT_EMAIL: ${env:GOOGLE_CLIENT_EMAIL}
+    GOOGLE_PRIVATE_KEY: ${env:GOOGLE_PRIVATE_KEY}
+    SHEET_ID: ${env:SHEET_ID}
+    SHEET_RANGE: ${env:SHEET_RANGE}
+
+functions:
+  appendToSheet:
+    handler: handler.appendToSheet
+    events:
+      - http:
+          path: data
+          method: post
