@@ -22,7 +22,8 @@ GOOGLE_CLIENT_EMAIL=serverless-gstore-app@your-google-project.iam.gserviceaccoun
 GOOGLE_PRIVATE_KEY='-----BEGIN PRIVATE KEY-----\nMIIEvg......\n-----END PRIVATE KEY-----\n'
 SHEET_ID=1BY7fLPPF89cn7PVGVqk6zGRaqbwe_Mknb0PrQWdaDr8
 SHEET_RANGE=Sheet2
-REQUEST_TIME_PROPERTY_NAME=utctimestamp
+REQUEST_TIME_PROPERTY_NAME=payload_fields.timestamp
+REQUEST_PAYLOAD_NESTED_PATH=payload_fields
 ```
 Remember:
 * GOOGLE_CLIENT_EMAIL google service user must have Editor access your SHEET_ID
@@ -57,9 +58,12 @@ After successful deployment, you can call the created application via HTTP:
 curl -X POST https://xxxxxxxx.execute-api.us-east-1.amazonaws.com/dev/data
 --data 
 {
-  "utctimestamp": "2024-11-24T14:20:05.842350033Z",
-  "name": "Alice",
-  "email": "alice@example.com"
+  "payload_fields": {
+    "timestamp": "2024-11-24T14:20:05.842350033Z",
+    "name": "Alice",
+    "email": "alice@example.com"
+  },
+  "ignored_field": "whatever"
 }
 
 ```

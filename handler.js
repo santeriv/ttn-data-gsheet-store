@@ -20,6 +20,17 @@ const oAuth2Client = new google.auth.JWT({
 
 const sheets = google.sheets({ version: 'v4', auth: oAuth2Client })
 
+function extractLevel(obj, path) {
+  const target = path ? getNestedProperty(obj, path) : obj
+  return target && typeof target === 'object'
+    ? Object.entries(target).map(([key, value]) => [key, value])
+    : []
+}
+
+function getNestedProperty(obj, path) {
+  return path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj)
+}
+
 function convertUTCtoFinnishTime(utcTime) {
   const date = new Date(utcTime)
 
@@ -60,8 +71,10 @@ function convertUTCtoFinnishTime(utcTime) {
 module.exports.appendToSheet = async event => {
   try {
     const body = JSON.parse(event.body)
-    const timePropertyName = process.env.REQUEST_TIME_PROPERTY_NAME
-    const time = body[timePropertyName]
+    const timePropertyName = process.env.REQUEST_TIME_PROPERTY_NAME // e.g., "timestamp" or "payload_fields.timestamp"
+
+    // Dynamically resolve the time property
+    const time = getNestedProperty(body, timePropertyName)
 
     if (!time) {
       return {
@@ -70,8 +83,22 @@ module.exports.appendToSheet = async event => {
       }
     }
 
+    // Convert UTC time to Finnish time
     const finnishTime = convertUTCtoFinnishTime(time)
 
+    // Define the nested path if applicable
+    const nestedPath = process.env.REQUEST_PAYLOAD_NESTED_PATH || null // e.g., "payload_fields" or null for no nesting
+    const nestedData = nestedPath ? extractLevel(body, nestedPath) : []
+    const remainingData = !nestedPath
+      ? Object.entries(body)
+          .filter(([key]) => key !== timePropertyName.split('.')[0]) // Exclude the time property
+          .map(([, value]) => value)
+      : []
+
+    // Choose only one: nestedData if nestedPath exists, otherwise remainingData
+    const additionalData = nestedPath ? nestedData.map(([, value]) => value) : remainingData
+
+    // Prepare row data
     const rowData = [
       time,
       finnishTime.dayOfWeekNumber,
@@ -79,18 +106,15 @@ module.exports.appendToSheet = async event => {
       finnishTime.minute,
       finnishTime.finnishDate,
       finnishTime.weekdayBaseName,
-      ...Object.entries(body)
-        .filter(([key]) => key !== timePropertyName)
-        .map(([, value]) => value)
+      ...additionalData
     ]
 
+    // Append the data to Google Sheets
     await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.SHEET_ID,
       range: process.env.SHEET_RANGE,
       valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [rowData]
-      }
+      resource: { values: [rowData] }
     })
 
     return {
