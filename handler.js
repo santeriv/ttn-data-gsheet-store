@@ -1,5 +1,4 @@
 const { google } = require('googleapis')
-const { OAuth2 } = google.auth
 const dotenv = require('dotenv')
 dotenv.config({ path: './.env' })
 
@@ -86,17 +85,19 @@ module.exports.appendToSheet = async event => {
     // Convert UTC time to Finnish time
     const finnishTime = convertUTCtoFinnishTime(time)
 
-    // Define the nested path if applicable
-    const nestedPath = process.env.REQUEST_PAYLOAD_NESTED_PATH || null // e.g., "payload_fields" or null for no nesting
-    const nestedData = nestedPath ? extractLevel(body, nestedPath) : []
-    const remainingData = !nestedPath
-      ? Object.entries(body)
-          .filter(([key]) => key !== timePropertyName.split('.')[0]) // Exclude the time property
-          .map(([, value]) => value)
-      : []
+    // Parse multiple nested paths from the environment variable
+    const nestedPaths = (process.env.REQUEST_PAYLOAD_NESTED_PATH || '').split(',').map(path => path.trim())
 
-    // Choose only one: nestedData if nestedPath exists, otherwise remainingData
-    const additionalData = nestedPath ? nestedData.map(([, value]) => value) : remainingData
+    // Extract data from all specified nested paths
+    const nestedData = nestedPaths.flatMap(path => extractLevel(body, path))
+
+    // Collect top-level remaining data (excluding time and nested paths)
+    const remainingData = Object.entries(body)
+      .filter(([key]) => key !== timePropertyName.split('.')[0] && !nestedPaths.some(path => path.split('.')[0] === key))
+      .map(([, value]) => value)
+
+    // Combine all extracted data
+    const additionalData = nestedData.map(([, value]) => value)
 
     // Prepare row data
     const rowData = [
@@ -106,7 +107,8 @@ module.exports.appendToSheet = async event => {
       finnishTime.minute,
       finnishTime.finnishDate,
       finnishTime.weekdayBaseName,
-      ...additionalData
+      ...additionalData,
+      ...remainingData
     ]
 
     // Append the data to Google Sheets
