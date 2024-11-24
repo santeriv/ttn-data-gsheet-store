@@ -70,6 +70,7 @@ curl -X POST https://xxxxxxxx.execute-api.us-east-1.amazonaws.com/dev/data
 }
 
 ```
+reference for TTN uplink_messages: https://www.thethingsindustries.com/docs/the-things-stack/concepts/data-formats/ 
 
 Which should result in http response (code: 200) similar to:
 
